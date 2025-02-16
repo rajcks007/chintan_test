@@ -142,7 +142,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     PA6     ------> ADC2_IN3
     PA7     ------> ADC2_IN4
     */
-    GPIO_InitStruct.Pin = lsc_vcc_Pin|alert_1_Pin|alert_2_Pin;
+    GPIO_InitStruct.Pin = lsc_vcc_Pin|alert_1_Pin|GPIO_PIN_7;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -226,7 +226,7 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
     PA6     ------> ADC2_IN3
     PA7     ------> ADC2_IN4
     */
-    HAL_GPIO_DeInit(GPIOA, lsc_vcc_Pin|alert_1_Pin|alert_2_Pin);
+    HAL_GPIO_DeInit(GPIOA, lsc_vcc_Pin|alert_1_Pin|GPIO_PIN_7);
 
   /* USER CODE BEGIN ADC2_MspDeInit 1 */
 

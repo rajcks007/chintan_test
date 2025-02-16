@@ -81,8 +81,6 @@ void Error_Handler(void);
 #define LD2_GPIO_Port GPIOA
 #define alert_1_Pin GPIO_PIN_6
 #define alert_1_GPIO_Port GPIOA
-#define alert_2_Pin GPIO_PIN_7
-#define alert_2_GPIO_Port GPIOA
 #define lsc_vccB1_Pin GPIO_PIN_1
 #define lsc_vccB1_GPIO_Port GPIOB
 #define efuse_EN_Pin GPIO_PIN_8

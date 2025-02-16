@@ -61,10 +61,12 @@ static void MX_ADC1_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_ADC3_Init(void);
 /* USER CODE BEGIN PFP */
-void init ();
+static void init ();
 int error (char *str);
 int efuse ();
 int buck_boost ();
+int LSC ();
+int CSA ();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -118,6 +120,10 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  efuse ();
 	  buck_boost ();
+	  HAL_ADC_Stop(&hadc1);
+	  LSC ();
+	  CSA ();
+
 ;  }
   /* USER CODE END 3 */
 }
@@ -296,13 +302,13 @@ static void MX_ADC2_Init(void)
   hadc2.Instance = ADC2;
   hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
   hadc2.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc2.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc2.Init.ContinuousConvMode = DISABLE;
+  hadc2.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc2.Init.ContinuousConvMode = ENABLE;
   hadc2.Init.DiscontinuousConvMode = DISABLE;
   hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc2.Init.NbrOfConversion = 1;
+  hadc2.Init.NbrOfConversion = 3;
   hadc2.Init.DMAContinuousRequests = DISABLE;
   hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc2.Init.LowPowerAutoWait = DISABLE;
@@ -320,6 +326,24 @@ static void MX_ADC2_Init(void)
   sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_4;
+  sConfig.Rank = ADC_REGULAR_RANK_3;
   if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -412,7 +436,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 38400;
+  huart2.Init.BaudRate = 115200;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -501,7 +525,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void init ()
+static void init ()
 	{
 		// set efuse pin and buck-boot nable pin to high to start efuse and buck boost converter
 		HAL_GPIO_WritePin(GPIOC, efuse_EN_Pin|Buck_Boost_EN_Pin, GPIO_PIN_SET);
@@ -537,9 +561,9 @@ int efuse ()
 
 	HAL_ADC_Start(&hadc1); // Start ADC Conversion
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // Poll ADC1 Peripheral
-	adc_values[2] = HAL_ADC_GetValue(&hadc1); // Read ADC Conversion Result
+	adc_values[1] = HAL_ADC_GetValue(&hadc1); // Read ADC Conversion Result
 	/* Voltage accross 10m Ohm resistor and then convert into voltage by dividing with ADC */
-	uint16_t efuse_voltage = adc_values[2]/ADC; // Read ADC Conversion Result from ch 1
+	uint16_t efuse_voltage = adc_values[1]/ADC; // Read ADC Conversion Result from ch 1
 	/* now current I = V/R */
 	float mess_current = efuse_voltage / resistor;
 	/* check if measure current is not excesses to 0.96 */
@@ -559,8 +583,6 @@ int efuse ()
 		return error("efuse output voltage error! \r\n ") ;
 		else init();
 
-	HAL_ADC_Stop(&hadc1);
-
 	return 0;
 
 	}
@@ -570,9 +592,9 @@ int buck_boost ()
 
 	HAL_ADC_Start(&hadc1); // Start ADC Conversion
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // Poll ADC1 Peripheral
-	adc_values[4] = HAL_ADC_GetValue(&hadc1); // Read ADC Conversion Result
+	adc_values[3] = HAL_ADC_GetValue(&hadc1); // Read ADC Conversion Result
 	/* Voltage accross 10m Ohm resistor and then convert into voltage by dividing with ADC and gain is 20 */
-	uint16_t buck_voltage = (adc_values[2]/ADC) / 20; // Read ADC Conversion Result from ch 1
+	uint16_t buck_voltage = (adc_values[3]/ADC) / 20; // Read ADC Conversion Result from ch 1
 	/* now current I = V/R */
 	float mess_current = buck_voltage / resistor;
 	/* check if measure current is not excesses to 0.96 */
@@ -584,15 +606,77 @@ int buck_boost ()
 
 	HAL_ADC_Start(&hadc1); // Start ADC Conversion
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // Poll ADC1 Peripheral
-	adc_values[2] = HAL_ADC_GetValue(&hadc1); // Read ADC Conversion Result
+	adc_values[4] = HAL_ADC_GetValue(&hadc1); // Read ADC Conversion Result
 	/* read output voltage from efuse and then convert into voltage by dividing with ADC */
-	uint16_t output_voltage_buck = adc_values[2]/ADC; // Read ADC Conversion Result from ch 7
+	uint16_t output_voltage_buck = adc_values[4]/ADC; // Read ADC Conversion Result from ch 7
 	/* check if output voltage != Input voltage - voltage across current sense resistor */
 	if(output_voltage_buck != (1 - buck_voltage))
 		return error("buck output voltage is not 1! \r\n ") ;
 		else init();
 
-	HAL_ADC_Stop(&hadc1);
+	return 0;
+
+	}
+
+int LSC ()
+	{
+
+	if(HAL_GPIO_ReadPin(PGOOD_GPIO_Port, PGOOD_Pin) == 0)		// check PGOOD pin
+		return error("PGOOD pin is low! \r\n ") ;
+	else if(HAL_GPIO_ReadPin(OVP_GPIO_Port, OVP_Pin) == 1)		// check OVP pin
+		return error("OVP pin is high! \r\n ") ;
+	else init();
+
+	HAL_ADC_Start(&hadc3); // Start ADC Conversion
+	HAL_ADC_PollForConversion(&hadc3, HAL_MAX_DELAY); // Poll ADC1 Peripheral
+	adc_values[5] = HAL_ADC_GetValue(&hadc3); // Read ADC Conversion Result
+	/* Output Voltage of LSC and then convert into voltage by dividing with ADC */
+	uint16_t LSC_voltage = (adc_values[5]/ADC); // Read ADC Conversion Result from ch 1
+	/* check if measure voltage is not excesses to 1 */
+	if(LSC_voltage == 1)
+		return error("LSC output voltage error! \r\n ") ;
+	else init();
+
+	HAL_ADC_Stop(&hadc3);
+
+	return 0;
+
+	}
+
+int CSA ()
+	{
+
+	HAL_ADC_Start(&hadc2); // Start ADC Conversion
+	HAL_ADC_PollForConversion(&hadc2, HAL_MAX_DELAY); // Poll ADC1 Peripheral
+	adc_values[6] = HAL_ADC_GetValue(&hadc2); // Read ADC Conversion Result
+	/* Output Voltage of ISC and then convert into voltage by dividing with ADC */
+	uint16_t CSA_current = (adc_values[6]/ADC); // Read ADC Conversion Result from ch 1
+	/* check if measure current is not excesses to 0.96 */
+	if(CSA_current > 0.96)
+		return error("CSA output current exceed error! \r\n ") ;
+	else init();
+
+	HAL_ADC_Start(&hadc2); // Start ADC Conversion
+	HAL_ADC_PollForConversion(&hadc2, HAL_MAX_DELAY); // Poll ADC1 Peripheral
+	adc_values[7] = HAL_ADC_GetValue(&hadc2); // Read ADC Conversion Result
+	/* Output Voltage of ISC and then convert into voltage by dividing with ADC */
+	uint16_t Alart_1 = (adc_values[7]/ADC); // Read ADC Conversion Result from ch 1
+	/* check if measure current is not excesses to 0.96 */
+	if(Alart_1 > 0.96)
+		return error("ALART 1 error! \r\n ") ;
+	else init();
+
+	HAL_ADC_Start(&hadc2); // Start ADC Conversion
+	HAL_ADC_PollForConversion(&hadc2, HAL_MAX_DELAY); // Poll ADC1 Peripheral
+	adc_values[8] = HAL_ADC_GetValue(&hadc2); // Read ADC Conversion Result
+	/* Output Voltage of ISC and then convert into voltage by dividing with ADC */
+	uint16_t Alart_2 = (adc_values[8]/ADC); // Read ADC Conversion Result from ch 1
+	/* check if measure current is not excesses to 0.96 */
+	if(Alart_2 > 0.96)
+		return error("ALART 2 error! \r\n ") ;
+	else init();
+
+	HAL_ADC_Stop(&hadc2);
 
 	return 0;
 
