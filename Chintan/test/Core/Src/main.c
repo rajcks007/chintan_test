@@ -42,15 +42,11 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
-ADC_HandleTypeDef hadc2;
-ADC_HandleTypeDef hadc3;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint16_t adc_values[9];			// define adc_value
-float resistor = 0.001;			// 10m Ohm resistor for current sensing
-uint16_t ADC = 4096; 			// ADC max value to get voltage from digital value
+uint16_t adc_values;			// define adc_value
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -58,19 +54,14 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_ADC2_Init(void);
-static void MX_ADC3_Init(void);
 /* USER CODE BEGIN PFP */
-static void init ();
-int error (char *str);
-int efuse ();
-int buck_boost ();
-int LSC ();
-int CSA ();
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+char msg[25];
+uint8_t data_1;
 
 /* USER CODE END 0 */
 
@@ -105,10 +96,8 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_ADC1_Init();
-  MX_ADC2_Init();
-  MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
-  init ();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -118,13 +107,27 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  efuse ();
-	  buck_boost ();
-	  HAL_ADC_Stop(&hadc1);
-	  LSC ();
-	  CSA ();
+	  HAL_ADC_Start(&hadc1);
+	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+	  adc_values = HAL_ADC_GetValue(&hadc1);
 
-;  }
+	  if(adc_values < 3000){
+		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
+		  data_1 = 1;
+	  }
+	  	else {
+	  		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
+	  		data_1 = 0;
+	  		HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+	  	}
+
+	  // Format the message as: /*data_1; data_2*/
+	  snprintf(msg, sizeof(msg), "/*%ul; %d*/\r\n", adc_values, data_1);
+
+	  // Transmit the message over UART
+	  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+
+  }
   /* USER CODE END 3 */
 }
 
@@ -166,9 +169,8 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_ADC34;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
-  PeriphClkInit.Adc34ClockSelection = RCC_ADC34PLLCLK_DIV1;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -199,13 +201,13 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
   hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 5;
+  hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
@@ -225,50 +227,12 @@ static void MX_ADC1_Init(void)
 
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_6;
+  sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_1;
-  sConfig.Rank = ADC_REGULAR_RANK_2;
-  sConfig.SingleDiff = ADC_DIFFERENTIAL_ENDED;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_7;
-  sConfig.Rank = ADC_REGULAR_RANK_3;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_8;
-  sConfig.Rank = ADC_REGULAR_RANK_4;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_9;
-  sConfig.Rank = ADC_REGULAR_RANK_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -276,147 +240,6 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
-
-}
-
-/**
-  * @brief ADC2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ADC2_Init(void)
-{
-
-  /* USER CODE BEGIN ADC2_Init 0 */
-
-  /* USER CODE END ADC2_Init 0 */
-
-  ADC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN ADC2_Init 1 */
-
-  /* USER CODE END ADC2_Init 1 */
-
-  /** Common config
-  */
-  hadc2.Instance = ADC2;
-  hadc2.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
-  hadc2.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc2.Init.ScanConvMode = ADC_SCAN_ENABLE;
-  hadc2.Init.ContinuousConvMode = ENABLE;
-  hadc2.Init.DiscontinuousConvMode = DISABLE;
-  hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc2.Init.NbrOfConversion = 3;
-  hadc2.Init.DMAContinuousRequests = DISABLE;
-  hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  hadc2.Init.LowPowerAutoWait = DISABLE;
-  hadc2.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
-  if (HAL_ADC_Init(&hadc2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_1;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_3;
-  sConfig.Rank = ADC_REGULAR_RANK_2;
-  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_4;
-  sConfig.Rank = ADC_REGULAR_RANK_3;
-  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC2_Init 2 */
-
-  /* USER CODE END ADC2_Init 2 */
-
-}
-
-/**
-  * @brief ADC3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ADC3_Init(void)
-{
-
-  /* USER CODE BEGIN ADC3_Init 0 */
-
-  /* USER CODE END ADC3_Init 0 */
-
-  ADC_MultiModeTypeDef multimode = {0};
-  ADC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN ADC3_Init 1 */
-
-  /* USER CODE END ADC3_Init 1 */
-
-  /** Common config
-  */
-  hadc3.Instance = ADC3;
-  hadc3.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
-  hadc3.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc3.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc3.Init.ContinuousConvMode = DISABLE;
-  hadc3.Init.DiscontinuousConvMode = DISABLE;
-  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc3.Init.NbrOfConversion = 1;
-  hadc3.Init.DMAContinuousRequests = DISABLE;
-  hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  hadc3.Init.LowPowerAutoWait = DISABLE;
-  hadc3.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
-  if (HAL_ADC_Init(&hadc3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure the ADC multi-mode
-  */
-  multimode.Mode = ADC_MODE_INDEPENDENT;
-  if (HAL_ADCEx_MultiModeConfigChannel(&hadc3, &multimode) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_1;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC3_Init 2 */
-
-  /* USER CODE END ADC3_Init 2 */
 
 }
 
@@ -463,8 +286,8 @@ static void MX_USART2_UART_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
+  /* USER CODE BEGIN MX_GPIO_Init_1 */
+  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -520,167 +343,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
+  /* USER CODE BEGIN MX_GPIO_Init_2 */
+  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
-static void init ()
-	{
-		// set efuse pin and buck-boot nable pin to high to start efuse and buck boost converter
-		HAL_GPIO_WritePin(GPIOC, efuse_EN_Pin|Buck_Boost_EN_Pin, GPIO_PIN_SET);
-		// set latch 1 and 2 to high for make current sense amplifier operation in latch mode
-		HAL_GPIO_WritePin(GPIOA, LATCH_1_Pin|LATCH_2_Pin, GPIO_PIN_SET);
-	}
 
-int error (char *str)
-	{
-		// set efuse pin and buck-boot nable pin to high to start efuse and buck boost converter
-		HAL_GPIO_WritePin(GPIOC, efuse_EN_Pin|Buck_Boost_EN_Pin, GPIO_PIN_RESET);
-		//send msg over uart
-		HAL_UART_Transmit(&huart2, (uint8_t *)str, strlen(str), HAL_MAX_DELAY);
-
-		return 0;
-	}
-
-
-int efuse ()
-	{
-
-	HAL_ADC_Start(&hadc1); // Start ADC Conversion
-	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // Poll ADC1 Peripheral
-	adc_values[0] = HAL_ADC_GetValue(&hadc1); // Read ADC Conversion Result
-	/* Input voltage of efuse and then convert into voltage by dividing with ADC */
-	uint16_t input_voltage = adc_values[0] / ADC; // Read ADC Conversion Result  from ch 6
-	/* check if voltage is in within range or not */
-	if(!(input_voltage > 2 && input_voltage < 3))
-		return error("efuse input voltage error! \r\n") ; // if not then stop efuse and buck
-		else init(); // if it is in range then do nothing
-
-
-
-	HAL_ADC_Start(&hadc1); // Start ADC Conversion
-	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // Poll ADC1 Peripheral
-	adc_values[1] = HAL_ADC_GetValue(&hadc1); // Read ADC Conversion Result
-	/* Voltage accross 10m Ohm resistor and then convert into voltage by dividing with ADC */
-	uint16_t efuse_voltage = adc_values[1]/ADC; // Read ADC Conversion Result from ch 1
-	/* now current I = V/R */
-	float mess_current = efuse_voltage / resistor;
-	/* check if measure current is not excesses to 0.96 */
-	if(mess_current > 0.96)
-		return error("efuse current not in limit! \r\n ") ;
-		else init();
-
-
-
-	HAL_ADC_Start(&hadc1); // Start ADC Conversion
-	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // Poll ADC1 Peripheral
-	adc_values[2] = HAL_ADC_GetValue(&hadc1); // Read ADC Conversion Result
-	/* read output voltage from efuse and then convert into voltage by dividing with ADC */
-	uint16_t output_voltage = adc_values[2]/ADC; // Read ADC Conversion Result from ch 7
-	/* check if output voltage != Input voltage - voltage across current sense resistor */
-	if(output_voltage !=  (input_voltage - efuse_voltage))
-		return error("efuse output voltage error! \r\n ") ;
-		else init();
-
-	return 0;
-
-	}
-
-int buck_boost ()
-	{
-
-	HAL_ADC_Start(&hadc1); // Start ADC Conversion
-	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // Poll ADC1 Peripheral
-	adc_values[3] = HAL_ADC_GetValue(&hadc1); // Read ADC Conversion Result
-	/* Voltage accross 10m Ohm resistor and then convert into voltage by dividing with ADC and gain is 20 */
-	uint16_t buck_voltage = (adc_values[3]/ADC) / 20; // Read ADC Conversion Result from ch 1
-	/* now current I = V/R */
-	float mess_current = buck_voltage / resistor;
-	/* check if measure current is not excesses to 0.96 */
-	if(mess_current > 0.96)
-		return error("buck current not in limit! \r\n ") ;
-		else init();
-
-
-
-	HAL_ADC_Start(&hadc1); // Start ADC Conversion
-	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // Poll ADC1 Peripheral
-	adc_values[4] = HAL_ADC_GetValue(&hadc1); // Read ADC Conversion Result
-	/* read output voltage from efuse and then convert into voltage by dividing with ADC */
-	uint16_t output_voltage_buck = adc_values[4]/ADC; // Read ADC Conversion Result from ch 7
-	/* check if output voltage != Input voltage - voltage across current sense resistor */
-	if(output_voltage_buck != (1 - buck_voltage))
-		return error("buck output voltage is not 1! \r\n ") ;
-		else init();
-
-	return 0;
-
-	}
-
-int LSC ()
-	{
-
-	if(HAL_GPIO_ReadPin(PGOOD_GPIO_Port, PGOOD_Pin) == 0)		// check PGOOD pin
-		return error("PGOOD pin is low! \r\n ") ;
-	else if(HAL_GPIO_ReadPin(OVP_GPIO_Port, OVP_Pin) == 1)		// check OVP pin
-		return error("OVP pin is high! \r\n ") ;
-	else init();
-
-	HAL_ADC_Start(&hadc3); // Start ADC Conversion
-	HAL_ADC_PollForConversion(&hadc3, HAL_MAX_DELAY); // Poll ADC1 Peripheral
-	adc_values[5] = HAL_ADC_GetValue(&hadc3); // Read ADC Conversion Result
-	/* Output Voltage of LSC and then convert into voltage by dividing with ADC */
-	uint16_t LSC_voltage = (adc_values[5]/ADC); // Read ADC Conversion Result from ch 1
-	/* check if measure voltage is not excesses to 1 */
-	if(LSC_voltage == 1)
-		return error("LSC output voltage error! \r\n ") ;
-	else init();
-
-	HAL_ADC_Stop(&hadc3);
-
-	return 0;
-
-	}
-
-int CSA ()
-	{
-
-	HAL_ADC_Start(&hadc2); // Start ADC Conversion
-	HAL_ADC_PollForConversion(&hadc2, HAL_MAX_DELAY); // Poll ADC1 Peripheral
-	adc_values[6] = HAL_ADC_GetValue(&hadc2); // Read ADC Conversion Result
-	/* Output Voltage of ISC and then convert into voltage by dividing with ADC */
-	uint16_t CSA_current = (adc_values[6]/ADC); // Read ADC Conversion Result from ch 1
-	/* check if measure current is not excesses to 0.96 */
-	if(CSA_current > 0.96)
-		return error("CSA output current exceed error! \r\n ") ;
-	else init();
-
-	HAL_ADC_Start(&hadc2); // Start ADC Conversion
-	HAL_ADC_PollForConversion(&hadc2, HAL_MAX_DELAY); // Poll ADC1 Peripheral
-	adc_values[7] = HAL_ADC_GetValue(&hadc2); // Read ADC Conversion Result
-	/* Output Voltage of ISC and then convert into voltage by dividing with ADC */
-	uint16_t Alart_1 = (adc_values[7]/ADC); // Read ADC Conversion Result from ch 1
-	/* check if measure current is not excesses to 0.96 */
-	if(Alart_1 > 0.96)
-		return error("ALART 1 error! \r\n ") ;
-	else init();
-
-	HAL_ADC_Start(&hadc2); // Start ADC Conversion
-	HAL_ADC_PollForConversion(&hadc2, HAL_MAX_DELAY); // Poll ADC1 Peripheral
-	adc_values[8] = HAL_ADC_GetValue(&hadc2); // Read ADC Conversion Result
-	/* Output Voltage of ISC and then convert into voltage by dividing with ADC */
-	uint16_t Alart_2 = (adc_values[8]/ADC); // Read ADC Conversion Result from ch 1
-	/* check if measure current is not excesses to 0.96 */
-	if(Alart_2 > 0.96)
-		return error("ALART 2 error! \r\n ") ;
-	else init();
-
-	HAL_ADC_Stop(&hadc2);
-
-	return 0;
-
-	}
 /* USER CODE END 4 */
 
 /**
