@@ -116,20 +116,19 @@ int main(void)
 	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	  adc_values[0] = HAL_ADC_GetValue(&hadc1);
 
-	  HAL_Delay(1000);
-	  	  if(adc_values[1] < 3000){
-	  		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1 , GPIO_PIN_RESET);
-	  		  data_1 = 0;
-	  	  }
-	  	  	else {
-	  	  		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
-	  	  		data_1 = 1;
-	  	  		HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-	  	  	}
-
-	  HAL_ADC_Start(&hadc2);
-	  HAL_ADC_PollForConversion(&hadc2, HAL_MAX_DELAY);
+	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	  adc_values[1] = HAL_ADC_GetValue(&hadc1);
+
+	  HAL_Delay(1000);
+	  if(adc_values[1] < 3000){
+		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1 , GPIO_PIN_RESET);
+		  data_1 = 0;
+	  }
+	  	else {
+	  		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
+	  		data_1 = 1;
+	  		HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+	  	}
 
 	  // Format the message as: /*data_1; data_2*/
 	  snprintf(msg, sizeof(msg), "/*%u; %d; %u*/\r\n", adc_values[0], data_1, adc_values[1]);
