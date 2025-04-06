@@ -97,6 +97,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
+  HAL_Delay(1000);
 
   /* USER CODE END 2 */
 
@@ -112,7 +114,7 @@ int main(void)
 	  adc_values = HAL_ADC_GetValue(&hadc1);
 
 	  if(adc_values < 3000){
-		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1 , GPIO_PIN_RESET);
 		  data_1 = 1;
 	  }
 	  	else {
@@ -126,6 +128,8 @@ int main(void)
 
 	  // Transmit the message over UART
 	  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+
+	  HAL_Delay(100);
 
   }
   /* USER CODE END 3 */
