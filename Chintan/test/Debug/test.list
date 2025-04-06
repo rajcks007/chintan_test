@@ -262,7 +262,7 @@ int main(void)
 	  	}
 
 	  // Format the message as: /*data_1; data_2*/
-	  snprintf(msg, sizeof(msg), "/*%ul; %d; %ul*/\r\n", adc_values[0], data_1, adc_values[1]);
+	  snprintf(msg, sizeof(msg), "/*%u; %d; %u*/\r\n", adc_values[0], data_1, adc_values[1]);
  8000338:	4b10      	ldr	r3, [pc, #64]	@ (800037c <main+0xec>)
  800033a:	881b      	ldrh	r3, [r3, #0]
  800033c:	4619      	mov	r1, r3

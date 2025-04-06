@@ -128,7 +128,7 @@ int main(void)
 	  	}
 
 	  // Format the message as: /*data_1; data_2*/
-	  snprintf(msg, sizeof(msg), "/*%u; %d; %u*/\r\n", adc_values[0], data_1, adc_values[1]);
+	  snprintf(msg, sizeof(msg), "/*%lu; %d; %u*/\r\n", adc_values[0], data_1, adc_values[1]);
 
 	  // Transmit the message over UART
 	  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
